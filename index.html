@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Journey Planner</title>
+<link rel="stylesheet" href="_css/themes/JourneyPlanner.css">
+
+<!--<script src="http://maps.google.com/maps/api/js?sensor=true"></script> cant include call to api multiple times -->
+<link rel="stylesheet" href="./meta/styles/m.css" />
+<link rel="stylesheet" href="_css/styles.css" />
+<script src="http://code.jquery.com/jquery-1.10.2.min.js"></script>
+  <script src="_js/jQuery.ui.min.js"></script>
+<script>
+  //reset type=date inputs to text
+  $( document ).bind( "mobileinit", function(){
+    $.mobile.page.prototype.options.degradeInputs.date = true;
+  });	
+</script>	
+<link rel="stylesheet" href="http://code.jquery.com/mobile/1.4.2/jquery.mobile-1.4.2.min.css" />
+ <!-- import the places library cant call the api through javascript -->
+ <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?libraries=places"></script>
+
+
+<script src="https://ajax.aspnetcdn.com/ajax/jquery.mobile/1.1.1/jquery.mobile-1.1.1.min.js"></script>
+<link rel="stylesheet" href="_css/jquery.ui.datepicker.mobile.css" /> 
+
+  <script src="_js/jquery.ui.datepicker.mobile.js"></script>
+  <link rel="stylesheet" href="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.css">
+<script src="http://code.jquery.com/jquery-1.11.2.min.js"></script>
+<script src="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
+ 
+
+    
+   
+
+<!--weather channel api key 5dc3cd9cbb6daea68e82f9561c33c -->
+
+<script>
+
+   $(document).ready(function(){
+///////////////////////////////////////////////////////////////////Load Train Stations////////////////////////////////////////////////////// 	
+  	
+var site ='http://api.irishrail.ie/realtime/realtime.asmx/getAllStationsXML';	
+
+
+var stationArr = [];
+var stationArrCode=[];
+		function getTrainNames(){
+		$.ajax({
+		        type: 'GET',
+		        url: 'http://query.yahooapis.com/v1/public/yql?q=' + encodeURIComponent('select * from xml where url="' + site + '"') + '&format=xml&callback=',
+		        dataType: "xml",
+		        success:function(data){
+		        $test = $(data).find('objStation');
+				//console.log($test.text());
+		
+		  		$(data).find('objStation').each(function(){ 
+				        	var $station = $(this);
+				        	var stationName = $station.find("StationDesc").text();
+				        	var stationCode = $station.find("StationCode").text();
+				        	//console.log(stationName);
+				     	
+				        	stationArr.push(stationName);
+				        	stationArrCode.push(stationCode);	
+				 }); 
+				   
+			
+					var option = '';
+					for (i=0;i<stationArr.length;i++){
+					   option += '<option value='+ stationArrCode[i] +'>' + stationArr[i] + '</option>';
+					}
+					$('#departure').append(option);
+			
+					
+					}
+	});//end ajax
+}//end function
+
+//call method to load stations into drop down 
+		getTrainNames();
+
+
+			
+////////////////////////////////////////////////////////GET TRAIN NAME///////////////////////////////////////////
+var stationHTML='';
+var stationTrains =[];
+var trainDate="";
+var queryTime;
+var stationFullName;
+function getTrainInfo(stationName){
+	
+	//reset trains list 
+		$('#table_holder').html("");	 
+	 $('h4').text("Trains for: ");
+	var url = 'http://api.irishrail.ie/realtime/realtime.asmx/getStationDataByCodeXML?StationCode='+stationName;
+		        $.ajax({
+		        	type: 'GET',
+		        	url: 'http://query.yahooapis.com/v1/public/yql?q=' + encodeURIComponent('select * from xml where url="' + url + '"') + '&format=xml&callback=',
+		        	dataType: "xml",
+		        	success:function(data){
+			        	$(data).find('objStationData').each(function(){ 
+			        		console.log(data);
+				        	var $train = $(this);
+				        	queryTime = $train.find('Querytime').text();
+				        	var trainCode = $train.find("Traincode").text();
+				        	stationFullName = $train.find('Stationfullname').text();
+				        	var origin = $train.find('Origin').text();
+				        	var destination = $train.find('Destination').text();
+				        	trainDate = $train.find('Traindate').text();
+				        	var service = $train.find('Traintype').text();
+				        	var schDepart = $train.find('Schdepart').text();
+				        	var eta = $train.find('Exparrival').text();		     
+				        	var dueIn = $train.find('Expdepart').text();
+				        	var status = $train.find('Status').text();
+							
+							var trainObj = {"TrainCode":trainCode,"Origin":origin,"Destination":destination,"Traintype":service,"Schdepart": schDepart,"Exparrival": eta,"Expdepart":dueIn, "Status":status};
+				        	
+							stationTrains.push(trainObj);
+							
+				        }); // close for each function
+				        console.log(stationTrains);
+				        //buid up table
+				       stationHTML = 
+						"	<table data-role=\"table\" data-mode=\"columntoggle\" class=\"ui-responsive\" id=\"train\">"+
+						"<thead><tr><th>Train</th>" +
+						"<th data-priority=\"7\">Origin</th>" +
+						"<th data-priority=\"2\">Destination </th>"+
+						"<th data-priority=\"3\">Service</th>" +
+						"<th data-priority=\"6\">Sch</th>" +
+						"<th data-priority=\"4\">ETA</th>" +
+						"<th data-priority=\"5\">Due In</th>" +
+						"<th data-priority=\"1\">Latest Information</th></tr></thead><tbody>";	
+						
+				       for(var j = 0; j < stationTrains.length; j++)
+	            	{
+	            		stationHTML += 
+	            		"<tr><td>" + stationTrains[j]['TrainCode'] +
+	            		"</td><td>" + stationTrains[j]['Origin'] + 
+	            		"</td><td>" + stationTrains[j]['Destination'] + 
+	            		"</td><td>" + stationTrains[j]['Traintype'] + 
+	            		"</td><td>" + stationTrains[j]['Schdepart'] +
+	            		"</td><td>" + stationTrains[j]['Exparrival'] + 
+	            		"</td><td>" + stationTrains[j]['Expdepart'] + 
+	            		"</td><td>" + stationTrains[j]['Status'] + "</td></tr>";	
+	            			
+	            	}
+	            	
+	            	
+	            	stationHTML +="</tbody></table> ";
+	            	//display results
+	            	$('#table_holder').html(stationHTML);	 
+	           		 $('h4').append(stationFullName + "<br>Date: " + trainDate +"<br>Query time: " + queryTime);	
+	           	 	
+				         } //close success
+				          }); //close ajax		  
+				   
+				    
+						
+					  
+				}; // close getTrainInfo
+		
+		
+		//event handler for find button
+			$( "button" ).click(function() {
+  			$('#table_holder').empty();
+				var station = $('#departure option:selected').val();
+				//passes in value of option selected (stationCode)
+				
+				getTrainInfo(station);
+				
+			});
+				
+////////////////////////////////////////////////Get location////////////////////////////////////////////////////////////////////////
+
+			
+			var mapObject;	
+		 	var userLatLng;
+		 	var lat;//declared outside so weather api request can use it and google places api
+		 	var lng;
+		 	var userAddress;
+		 	
+		 	//get location from browser
+		      function geolocationSuccess(position) {
+		        userLatLng = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
+		        lat = position.coords.latitude;
+		        lng= position.coords.longitude;
+		      
+		
+       ///////////////////////////////////////////GET MOUNTAIN/SKI WEATHER FOR A LOCATION///////////////////////////////////////////////////////
+		 //returned in browser ?({ "data": { "error": [ {"msg": "Unable to find any matching weather location to the query submitted!" } ] }})
+		//changed lat and lng to locations available
+		$.getJSON("http://api.worldweatheronline.com/free/v2/ski.ashx?q=47.12,13.13&format=json&num_of_days=1&key=5dc3cd9cbb6daea68e82f9561c33c&callback=?", function(result){
+   		//response data are now in the result variable
+   		console.log(result);
+   		var itemsLength = result.data.weather.length;
+		    
+	        	for ( var i = 0; i < itemsLength; i++) 
+	        	{
+	        		
+		            var chanceOfSnow = result.data.weather[i].chanceofsnow;
+		            var date = result.data.weather[i].date;
+		            var tempAtTopMax = result.data.weather[i].top[i].maxtempC;
+		            var tempAtTopMin = result.data.weather[i].top[i].mintempC;
+		            var windSpeedTop = result.data.weather[i].hourly[i].top[i].windspeedMiles;
+		             $("#weather_icon").attr("src",result.data.weather[i].hourly[i].top[i].weatherIconUrl[0].value);
+		            var weatherDesc = result.data.weather[i].hourly[i].top[i].weatherDesc[0].value;
+		           }
+		           
+   				
+		    	$('h4').append(" Date: " + date + "<br>");	
+		    	$('.showMountainSkiWeather p').append("Description: " + weatherDesc + "<br>");	
+		    	$('.showMountainSkiWeather p').append("Temperature at top Max: " + tempAtTopMax+ "C<br>");	
+		    	$('.showMountainSkiWeather p').append("Temperature at top Min: " + tempAtTopMin + "C<br>");
+				$('.showMountainSkiWeather p').append("Wind speed at top: " + tempAtTopMin + "C<br>");
+				$('.showMountainSkiWeather p').append("Chance of snow: " + chanceOfSnow + "C<br>");
+   	
+		});  
+		
+       ///////////////////////////////////////////GET WEATHER FOR USER LOCATION///////////////////////////////////////////////////////
+ 	 $.ajax(
+	{
+	    Type: "GET",
+	    contentType: "application/json",
+	    dataType: "json"|"png",
+	    url: "http://api.worldweatheronline.com/free/v2/weather.ashx?q=lat="+lat+"&lng="+lng+"&format=json&num_of_days=1&key=5dc3cd9cbb6daea68e82f9561c33c",
+	
+		    success: function (response) {
+		    //gets the length of the current_condition array of json objects
+		    var itemsLength = response.data.current_condition.length;
+		    
+	        	for ( var i = 0; i < itemsLength; i++) 
+	        	{
+	        		
+		            var jsonCloudcover = response.data.current_condition[i].cloudcover;
+		            var jsonFeelsLikeC = response.data.current_condition[i].FeelsLikeC;
+		            var jsonHumidity= response.data.current_condition[i].humidity;
+		            var jsontemp_C= response.data.current_condition[i].temp_C;
+		            var windspeedKmph = response.data.current_condition[i].windspeedKmph;
+		            var weatherDesc= response.data.current_condition[i].weatherDesc[0].value;
+		            $('h3').append(response.data.current_condition[i].observation_time);
+		            $("#my_image").attr("src",response.data.current_condition[i].weatherIconUrl[0].value);
+			    
+	           }
+           //console.log(jsonCloudcover);
+          // console.log(icon);
+           //console.log(weatherDesc);
+           		$('.showWeather p').append("Description: " + weatherDesc + "<br>");	
+		    	$('.showWeather p').append("Temperature: " + jsontemp_C + " C<br>");	
+		    	$('.showWeather p').append("Humidity: " + jsonHumidity + "<br>");	
+		    	$('.showWeather p').append("Cloud cover: " +jsonCloudcover + "<br>");	
+		    	$('.showWeather p').append("Wind speed: " + windspeedKmph + " km/h<br>");
+				$('.showWeather p').append("Feels like: " + jsonFeelsLikeC + " C<br>");	
+				
+		   }
+     			    	
+		
+    });//end ajax
+	
+
+
+
+
+        // Write the formatted address
+       
+        writeAddressName(userLatLng);
+ 		//console.log(userLatLng);
+	
+    
+        var myOptions = {
+          zoom : 15,
+          center : userLatLng,
+          mapTypeId : google.maps.MapTypeId.ROADMAP
+        };
+        // Draw the map
+        mapObject = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
+        // Place the marker
+        new google.maps.Marker({
+          map: mapObject,
+          position: userLatLng
+        });
+        
+        // Draw a circle around the user position to have an idea of the current localization accuracy
+        var circle = new google.maps.Circle({
+          center: userLatLng,
+          radius: position.coords.accuracy,
+          map: mapObject,
+          fillColor: '#0000FF',
+          fillOpacity: 0.5,
+          strokeColor: '#0000FF',
+          strokeOpacity: 1.0
+        });
+        mapObject.fitBounds(circle.getBounds());
+   }
+
+	function writeAddressName(latLng) {
+	        var geocoder = new google.maps.Geocoder();
+	        geocoder.geocode({
+	          "location": latLng
+	        },
+	        function(results, status) {
+	          if (status == google.maps.GeocoderStatus.OK){
+	            //document.getElementById("address").innerHTML = results[0].formatted_address;
+	            $('show Weather h3').append(results[0].formatted_address);
+
+	            }
+	          else{
+	           alert("Unable to retrieve your address" + "<br />");
+	           }
+	        });
+	      }
+
+      function geolocationError(positionError) {
+        document.getElementById("error").innerHTML += "Error: " + positionError.message + "<br />";
+      }
+ 
+      function geolocateUser() {
+        // If the browser supports the Geolocation API
+        if (navigator.geolocation)
+        {
+          var positionOptions = {
+            enableHighAccuracy: true,
+            timeout: 10 * 1000 // 10 seconds
+          };
+          navigator.geolocation.getCurrentPosition(geolocationSuccess, geolocationError, positionOptions);
+        }
+        else
+          alert("Your browser doesn't support the Geolocation API");
+      }
+      
+//keep location point at center of page
+ 	var center;
+ 	
+	function calculateCenter() {
+	  center = mapObject.getCenter();
+	}
+	
+	//map listeners
+	      window.onload = geolocateUser;
+	      google.maps.event.addDomListener(mapObject, 'idle',  function() {
+	  	  calculateCenter();
+	  	});
+		
+	     google.maps.event.addDomListener(window, 'resize', function(){
+	     	   map.setCenter(center);
+	     });
+	 
+
+
+ 	
+//places
+	var map2;
+var infowindow;
+
+function initialize() {
+  var location = new google.maps.LatLng(lat, lng);
+
+  map2 = new google.maps.Map(document.getElementById('places_map'), {
+    center: location,
+    zoom: 15
+  });
+
+  var request = {
+    location: location,
+    radius: 500,
+    types: ['store']
+  };
+  infowindow = new google.maps.InfoWindow();
+  var service = new google.maps.places.PlacesService(map2);
+  //pass request to nearby search
+  service.nearbySearch(request, callback);
+}
+
+function callback(results, status) {
+  if (status == google.maps.places.PlacesServiceStatus.OK) {
+    for (var i = 0; i < results.length; i++) {
+      createMarker(results[i]);
+    }
+  }
+}
+
+function createMarker(place) {
+  var placeLoc = place.geometry.location;
+  var marker = new google.maps.Marker({
+    map: map2,
+    position: place.geometry.location
+  });
+
+  google.maps.event.addListener(marker, 'click', function() {
+    infowindow.setContent(place.name);
+    infowindow.open(map2, this);
+  });
+}
+
+//google.maps.event.addDomListener(window, 'load', initialize);
+
+
+
+
+
+
+});//end ready
+
+
+</script>
+
+
+
+
+
+
+</head>
+<body>
+	
+	<div data-role="page" id="home" data-theme="a">
+
+	<div data-role="header" data-theme="a">
+		<h1>Journey Planner</h1>
+	</div><!-- /header -->
+
+	<div role="main" class="ui-content">
+	<ul data-role="listview" data-inset="true">
+            <li><a href="#train">Train</a></li>
+            <li><a href="#bus">Nearby places</a></li>
+              <li><a href="#weather">Weather</a></li>
+        </ul>
+	<div data-role="page" id="index">
+        <div data-theme="b" data-role="header">
+            <h1>Index page</h1>
+           
+        </div>
+ 	
+        <div data-role="content" id="content">
+            
+            
+        </div>
+    </div>  
+	</div>
+	 
+	<!-- /content -->
+	 <div id="map_canvas"></div> 
+<div data-role="footer" data-id="myfooter" data-position="fixed" data-theme="a">
+		<div class="controls" data-role="controlgroup" data-type="horizontal">
+    		<a href="#home" class="ui-btn ui-shadow ui-corner-all ui-btn-icon-left ui-icon-home">Home</a>
+		</div>
+	</div><!-- /footer -->
+</div><!-- /page -->
+
+<!-- Start of train page -->
+
+<div data-role="page" id="train" data-theme="a">
+<div data-role="header" data-theme="a">
+		<h1>Irish Rail</h1>
+		<a href="#home" class="ui-btn ui-shadow ui-corner-all ui-btn-right ui-icon-home ui-btn-icon-notext">home</a>
+	</div><!-- /header -->
+	<div role="main" class="ui-content">
+	    <h2>Select a Station</h2>
+            <form>
+                <fieldset>
+                  
+                    <div class="departure">
+                        <label for="selectDept" class="selectDept">Station:</label>
+                        <select name="departure" id="departure">
+                          
+                        </select>
+           
+                    </div>
+                    <button type="button" class="ui-shadow ui-btn ui-corner-all" onclick="">Find Current Trains</button>
+                </fieldset>
+              
+            </form>
+            <div class = "listTrains">     	
+	<h4 class="ui-bar ui-bar-a ui-corner-all">Trains for </h4> 
+	<div id ="table_holder">
+	
+</div>
+</div>
+	    <p><a href="#home" data-direction="reverse">Back to home</a></p>
+	</div>
+	<!-- /content -->
+	<div data-role="footer" data-id="myfooter" data-position="fixed" data-theme="a">
+		<div class="controls" data-role="controlgroup" data-type="horizontal">
+    		<a href="#home" class="ui-btn ui-shadow ui-corner-all ui-btn-icon-left ui-icon-home">Home</a>
+		</div>
+	</div><!-- /footer -->
+</div><!-- /page -->
+
+
+	<!-- Start of places nearby page -->
+
+<div data-role="page" id="bus" data-theme="a">
+<div data-role="header" data-theme="a">
+		<h1>Places Nearby</h1>
+		<a href="#home" class="ui-btn ui-shadow ui-corner-all ui-btn-right ui-icon-home ui-btn-icon-notext">home</a>
+	</div><!-- /header -->
+	<div role="main" class="ui-content">
+       <div id="places_map"></div>        
+
+	    <p><a href="#home" data-direction="reverse">Back to home</a></p>
+	</div>
+	
+<!-- /content -->
+<div data-role="footer" data-id="myfooter" data-position="fixed" data-theme="a">
+		<div class="controls" data-role="controlgroup" data-type="horizontal">
+    		<a href="#home" class="ui-btn ui-shadow ui-corner-all ui-btn-icon-left ui-icon-home">Home</a>
+		</div>
+	</div><!-- /footer -->
+</div><!-- /page -->
+	
+
+
+
+
+	
+
+
+
+
+
+
+	
+	<!-- Start of weather page -->
+<div data-role="page" id="weather" data-theme="a">
+<div data-role="header" data-theme="a">
+		<h1>Weather</h1>
+		<a href="#home" class="ui-btn ui-shadow ui-corner-all ui-btn-right ui-icon-home ui-btn-icon-notext">home</a>
+	</div><!-- /header -->
+	<div role="main" class="ui-content">
+	   
+     <div class = "showWeather">
+	<h3 class="ui-bar ui-bar-a ui-corner-all">Current Weather Conditions - last updated at </h3>
+      <div class="ui-body ui-body-a ui-corner-all">
+		<img id="my_image" src=""/>
+          <p></p>
+      </div>
+	</div>
+	
+	<div class = "showMountainSkiWeather">
+	<h4 class="ui-bar ui-bar-a ui-corner-all">Current Mountain Weather Conditions for peak </h4>
+      <div class="ui-body ui-body-a ui-corner-all">
+		<img id="weather_icon" src=""/>
+          <p></p>
+      </div>
+	</div>
+	    <p><a href="#home" data-direction="reverse">Back to home</a></p>
+	</div>
+	
+		
+	
+<!-- /content -->
+<div data-role="footer" data-id="myfooter" data-position="fixed" data-theme="a">
+		<div class="controls" data-role="controlgroup" data-type="horizontal">
+    		<a href="#home" class="ui-btn ui-shadow ui-corner-all ui-btn-icon-left ui-icon-home">Home</a>
+		</div>
+		
+	</div><!-- /footer -->
+</div><!-- /page -->
+
+
+
+
+
+
+</html>
